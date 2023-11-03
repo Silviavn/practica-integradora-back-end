@@ -1,0 +1,22 @@
+{
+  "name": "practica-integradora-back-end",
+  "version": "1.0.0",
+  "description": "Como crear un servidor express\r multer; para subir archivos con handlebars\r sistema con mongo DB, mongose",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/app.js",
+    "start:dev": "nodemon src/app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^8.0.0",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
