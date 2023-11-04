@@ -1,6 +1,6 @@
 const { userModel } = require("./models/users.model")
 
-//CRUD
+//CRUD para ir creando los usuarios
 class UserManagerMongo {
     constructor(){
         this.model = userModel
@@ -8,13 +8,17 @@ class UserManagerMongo {
 
     async getUsers (){
         try {
-            return this.model.find({})
+            return  await this.model.find({})
         } catch (error){
             console.log(error)
         }
     }
-    getUser = async ()=>{}
-    async createUser(){}
+    getUser = async (uid)=>{
+        return await this.model.findOne({_id: uid})
+    }
+    async createUser(newUser){
+        return await this.model.create(newUser)
+    }
     async updateUser(){}
     async deleteUser(){}
 }
