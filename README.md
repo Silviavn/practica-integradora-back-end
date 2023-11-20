@@ -14,9 +14,9 @@ servicio de mongo en la nube que ya esta la conectado con nuestra app
 - npm i mongoose multer
 - npm i express-handlebars => la version 7 de handlebars da problemas cuando se sube a un servidor web.
 
+# Hasta el momento 
+-LLevamos configurado handlebars
+
 ### Preguntas para el profe
 
-por que no me funciona postman y la conexion de base de datos con el link
-
-pushde pruebA
 
