@@ -12,9 +12,11 @@
     </div>
     {{!-- estrategia de github --}}
     <div class="d-flex justify-content-center align-item-center">
-        <a class="" href="/api/sessions/github">
-            <button class="btn btn-dark w-100">Github</button>
-        </a>
+        <form action="/api/sessions/github" method="get">
+            <button class="btn btn-dark w-100" type="submit">
+                Login con GitHub
+            </button>
+        </form>
     </div>
     <a href="/register">Registrarme</a>
 

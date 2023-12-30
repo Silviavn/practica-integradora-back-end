@@ -19,6 +19,12 @@ router.get('/register', (req,res)=>{
         showNav: true
     })
 })
+
+router.get('/profile', (req,res)=>{
+    res.render('profile', {
+        showNav: true
+    })
+})
 //Para proteger nuestra ruta de usuarios usaremos jwt aplicado con passport
 router.get('/users', [
         passportCall('jwt'),

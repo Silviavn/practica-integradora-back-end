@@ -6,9 +6,12 @@ const routerApp = require('./routes')
 const { initializePassport } = require('./config/passport.config')
 const passport = require('passport')
 const cookieParser = require('cookie-parser')
+const session = require("express-session")
+
 
 const app = express()
 const PORT = 8080
+const cookieSecret = "C0D3R";
 
 connectDb()
 
@@ -22,8 +25,12 @@ app.engine('hbs', handlebars.engine({
 app.set('view engine', 'hbs');
 app.set('views', 'views');
 
+app.use(session({ secret: cookieSecret, resave: true, saveUninitialized: true }));
+
 initializePassport()
 app.use(passport.initialize())
+app.use(passport.session())
+
 app.use(routerApp)
 app.use(express.static("public"));
 
