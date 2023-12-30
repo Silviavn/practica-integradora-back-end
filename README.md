@@ -5,7 +5,6 @@ sistema con mongo DB, mongose
 ¿Que es mongo atlas?
 servicio de mongo en la nube que ya esta la conectado con nuestra app
 
-
 ### Instalaciones
 
 - npm init -y 
@@ -19,4 +18,9 @@ servicio de mongo en la nube que ya esta la conectado con nuestra app
 
 ### Preguntas para el profe
 
+### Pendiente
+- La base de datos debe llamarse ecommerce
+
+### Segunda practica integradora
+Sistema de registro y login
 

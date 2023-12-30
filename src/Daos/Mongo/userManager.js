@@ -1,19 +1,18 @@
 const { userModel } = require("./models/users.model")
-
-//CRUD para ir creando los usuarios
+// UserDaoMongo
 class UserManagerMongo {
     constructor(){
         this.model = userModel
     }
 
-    async getUsers (){
+    async getUsers(){
         try {
-            return  await this.model.find({})
-        } catch (error){
+            return await this.model.find({})
+        } catch (error) {
             console.log(error)
         }
     }
-    getUser = async (uid)=>{
+    getUserBy = async (uid)=>{
         return await this.model.findOne({_id: uid})
     }
     async createUser(newUser){
@@ -21,5 +20,6 @@ class UserManagerMongo {
     }
     async updateUser(){}
     async deleteUser(){}
-}
-module.exports = { UserManagerMongo}
+} 
+
+module.exports = { UserManagerMongo }

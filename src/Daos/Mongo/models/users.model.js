@@ -1,22 +1,33 @@
-const { Schema, model } = require('mongoose')
-// nombre de la coleccion
-const collection = 'users'
-//Aqui creamos las propiedades que va a tener
+const {Schema, model} = require('mongoose')
+
+//importamos la libreria paginate-v2 version dos
+const mongoosePaginate = require('mongoose-paginate-v2')
+
+const userCollection = 'users'
+
 const userSchema = new Schema({
-    first_name: {
+    first_name:{
         type: String,
-        required: true
+        index: true
     },
-    last_name : {
-        type: String
+    last_name: {
+        type: String,
+        require: true
     },
     email: {
         type: String,
-        required: true,
         unique: true
+    },
+    password: String,
+    role: {
+        type: String,
+        enum: ['user', 'user_premium', 'admin'],
+        default: 'user'
+    },
 
-    }
+
 })
+userSchema.plugin(mongoosePaginate)
+const userModel = model(userCollection, userSchema) // metodos acciones para interactuar con la base de datos 
 
-const userModel = model(collection, userSchema)
-module.exports = { userModel}
+module.exports = { userModel }

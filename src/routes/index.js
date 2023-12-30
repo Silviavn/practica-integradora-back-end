@@ -1,18 +1,19 @@
-//Aqui van los endpoints con sus importaciones y sus configuraciones de ruter 
-
-const { Router } = require ('express')
-const usersRouter = require('.users.router.js/')
+//Nuestro front-end
+const { Router } = require('express')
+const usersRouter = require('./api/users.router.js')
 const viewsRouter = require('./views.router.js')
+const sessionsRouter = require('./api/sessions.router.js')
 
 const router = Router()
 
+// router.use('/', (req,res) =>{
+//     res.send('Bienvenidos a la comisión 58070')
+// })
 
-//router.use('/', (req, res) => {
-  //  res.send('Hola mundo de prueba con el servidor')
-//})
 
-router.use('/views', viewsRouter)
+router.use('/', viewsRouter)
 router.use('/api/users', usersRouter)
-//router.use('/api/products', ()=> {})
+router.use('/api/sessions', sessionsRouter)
+// router.use('/api/products', ()=>{})
 
 module.exports = router
