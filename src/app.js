@@ -1,9 +1,9 @@
 //Nuestro servidor con passport y jws
 const express = require('express')
 const handlebars = require('express-handlebars')
-const { connectDb } = require('./config/config')
+const connectDb = require('./config/config')
 const routerApp = require('./routes')
-const { initializePassport } = require('./config/passportJwt')
+const { initializePassport } = require('./config/passport.config')
 const passport = require('passport')
 const cookieParser = require('cookie-parser')
 
@@ -19,14 +19,14 @@ app.use(cookieParser('firmaSecret@'))
 app.engine('hbs', handlebars.engine({
     extname: '.hbs'
 }))
-app.set('view engine', 'hbs')
-app.set('views', __dirname + '/views')
+app.set('view engine', 'hbs');
+app.set('views', 'views');
 
 initializePassport()
 app.use(passport.initialize())
-
 app.use(routerApp)
+app.use(express.static("public"));
 
-app.listen(PORT, ()=>{
+app.listen(PORT, () => {
     console.log(`Server listen on port ${PORT}`)
 })
