@@ -1,32 +1,73 @@
-//Nuestro servidor con passport y jws
-const express = require('express')
-const handlebars = require('express-handlebars')
-const { connectDb } = require('./config/config')
-const routerApp = require('./routes')
-const { initializePassport } = require('./config/passportJwt')
-const passport = require('passport')
-const cookieParser = require('cookie-parser')
+import express from "express";
+import {Server} from "socket.io";
+import handlebars from "express-handlebars";
+import __dirname from "./util.js";
+import cookieParser from "cookie-parser";
+import indexRouter from "./routes/index.router.js";
+import messageModel from "./Dao/models/messages.model.js";
+import passport from "passport";
+import initPassport from "./config/passportConfig.js";
+import config from "./config/config.js";
+import handleError from "./middlewares/handleError.js";
+import {addLogger} from "./logger/logger.js";
+import swaggerJSDoc from "swagger-jsdoc";
+import swaggerUi from "swagger-ui-express";
 
-const app = express()
-const PORT = 8080
+const app = express();
 
-connectDb()
+const httpServer = app.listen(config.port, () =>
+  console.log("App listen on port", config.port)
+);
 
-app.use(express.json())
-app.use(express.urlencoded({extended: true}))
-app.use(cookieParser('firmaSecret@'))
+const io = new Server(httpServer);
 
-app.engine('hbs', handlebars.engine({
-    extname: '.hbs'
-}))
-app.set('view engine', 'hbs')
-app.set('views', __dirname + '/views')
+const swaggerOption = {
+  definition: {
+    openapi: "3.0.1",
+    info: {
+      title: "API Documentation",
+      description: "Apis que contiene el proyecto",
+    },
+  },
+  apis: ["./src/docs/**.yaml"],
+};
 
-initializePassport()
-app.use(passport.initialize())
+const specs = swaggerJSDoc(swaggerOption);
 
-app.use(routerApp)
+app.engine("handlebars", handlebars.engine());
 
-app.listen(PORT, ()=>{
-    console.log(`Server listen on port ${PORT}`)
-})
+app.set("views", __dirname + "/views");
+app.set("view engine", "handlebars");
+
+app.use(cookieParser());
+app.use(express.json({limit: "25mb"}));
+app.use(express.urlencoded({extended: true, limit: "25mb"}));
+app.use(express.static(__dirname + "/public"));
+app.use(addLogger);
+app.use("/apidocs", swaggerUi.serve, swaggerUi.setup(specs));
+
+initPassport();
+app.use(passport.initialize());
+
+app.use("/", indexRouter);
+
+app.use(handleError);
+
+io.on("connection", async (socket) => {
+  console.log("New client connected");
+
+  const logs = await messageModel.find();
+  io.emit("log", {logs});
+  socket.on("message", async (data) => {
+    await messageModel.create({
+      user: data.user,
+      message: data.message,
+      time: data.time,
+    });
+    const logs = await messageModel.find();
+    io.emit("log", {logs});
+  });
+  socket.on("userAuth", (data) => {
+    socket.broadcast.emit("newUser", data);
+  });
+});

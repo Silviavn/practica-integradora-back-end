@@ -1,68 +1,30 @@
-//Nuestro front-end
-const { Router } = require('express')
-const { uploader } = require('../utils/multer')
-const { userModel } = require('../Daos/Mongo/models/users.model')
-const { passportCall } = require('../middlewars/passportCall.middlewars')
-const { authorization } = require('../middlewars/authorization.middlewars')
+import {Router} from "express";
+import {recover} from "../middlewares/recover.js";
+import * as viewsController from "../controller/views.controllers.js";
+import {auth} from "../middlewares/auth.js";
 
-const router = Router()
+const router = Router();
 
+router.get("/", viewsController.home);
 
-router.get('/login', (req,res)=>{
-    res.render('login', {
-        showNav: true
-    })
-})
+router.get("/chat", auth(["user", "premium"]), viewsController.chat);
 
-router.get('/register', (req,res)=>{
-    res.render('register', {
-        showNav: true
-    })
-})
-//Para proteger nuestra ruta de usuarios usaremos jwt aplicado con passport
-router.get('/users', [
-        passportCall('jwt'),
-        authorization(['USER','ADMIN'])
-    ], async (req, res) => {
-    try {
-        //Los filtros de busqueda van entre {}
-        const {numPage=1, limit=2, query=''} = req.query
+router.get("/products?", viewsController.products);
 
-        let { 
-            docs,
-            hasPrevPage,
-            hasNextPage,
-            nextPage,
-            prevPage,
-            page
-         } = await userModel.paginate({}, {limit: limit, page: numPage, lean: true})
-        // console.log(users)
-           
-        res.status(200).render('users', {
-            showNav: true,
-            users: docs,
-            hasPrevPage,
-            hasNextPage,
-            prevPage,
-            nextPage,
-            page
-        })
+router.get("/cart", auth(["user", "premium", "admin"]), viewsController.cart);
 
-    } catch (error) {
-        console.log(error)
-    }   
-})
+router.get("/register", viewsController.register);
 
+router.get("/login", viewsController.login);
 
-router.get('/subirarch', (req, res)=>{
-    res.render('subirArch')
-})
+router.get("/recover", viewsController.recover);
 
-router.post('/subirarch', uploader.single('file') ,(req,res) => {
-    if (!req.file) return res.status(400).send({status: 'error', error: 'No se pudo guardar la imagen'})
+router.get("/recoverPassword/:token", recover, viewsController.recoverPassword);
 
-    res.send({status: 'success', payload: 'Archivo Subido con Éxito'})
-})
+router.get( "/profile", auth(["user", "premium", "admin"]), viewsController.profile);
 
+router.get("/loggerTest", viewsController.loggerTest);
 
-module.exports = router 
+router.get("/admin",auth(["admin"]), viewsController.admin);
+
+export default router;
