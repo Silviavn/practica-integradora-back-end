@@ -1,6 +1,6 @@
 import chai from "chai";
 import supertest from "supertest";
-import {logger} from "../logger/logger.js";
+import {logger} from "../logs/logger.js";
 
 const testingURL = "http://localhost:8080";
 const expect = chai.expect;

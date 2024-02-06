@@ -9,7 +9,7 @@ import passport from "passport";
 import initPassport from "./config/passportConfig.js";
 import config from "./config/config.js";
 import handleError from "./middlewares/handleError.js";
-import {addLogger} from "./logger/logger.js";
+import {addLogger} from "../logs/logger.js";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 

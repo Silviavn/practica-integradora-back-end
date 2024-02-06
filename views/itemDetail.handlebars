@@ -1,0 +1,12 @@
+<div class="container mt-5 text-center">
+  <p>Título: {{title}}</p>
+  <p>Descripción: {{description}}</p>
+  <p>Precio: {{price}}</p>
+  <form action="/cart/{{_id}}" method="post">
+    
+    <input type="submit" class="btn btn-primary" value="Comprar">
+  </form>
+  <a href="/products" class="d-block mt-3">
+    <button type="button" class="btn btn-secondary">Volver a productos</button>
+  </a>
+</div>
