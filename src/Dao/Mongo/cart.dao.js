@@ -1,9 +1,7 @@
-import cartModel from "../models/carts.model.js";
+import { cartModel } from "../models/carts.model.js";
 import * as productService from "../../services/product.services.js";
 import * as ticketService from "../../services/ticket.services.js";
 import { sendTicketMail } from "../../utils/sendTicketMail.js";
-import cartModel from "../models/carts.model.js";
-
 
 // Llamamos todos los Carts
 const getAllCarts = async () => {
@@ -34,7 +32,7 @@ const addProductToCart = async (cid, pid) => {
     { $inc: { "products.$.quantity": 1 } },
     { new: true }
   );
-
+    console.log(cid, pid, cartUpdate)
   if (!cartUpdate) {
     const newCart = await cartModel.findByIdAndUpdate(
       cid,
@@ -191,9 +189,7 @@ const sumTotal = async (cid) => {
   return total;
 };
 
-
-
-export {  
+export {
   getAllCarts,
   getCartById,
   addCart,

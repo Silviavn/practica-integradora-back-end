@@ -1,4 +1,4 @@
-import ticketModel from "../models/ticket.model";
+import { ticketModel } from "../models/ticket.model.js";
 
 
 const generateTicket = async (ticket) => {
@@ -13,4 +13,7 @@ const getTicketFromEmail = async (email) => {
   return ticket;
 };
 
-export { generateTicket, getTicketFromEmail };
+export { 
+  generateTicket, 
+  getTicketFromEmail
+};

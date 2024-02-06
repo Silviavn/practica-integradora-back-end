@@ -1,0 +1,24 @@
+import { Router } from "express";
+import {
+  addDatos,
+  changeRole,
+  deleteUser,
+  deleteUsers,
+  getAllUsers,
+  getUserByEmail,
+  getUserById,
+} from "../controller/user.controllers.js";
+import { uploaderFiles } from "../utils/uploadFiles.js";
+import { checkUserDocuments } from "../middlewares/checkUserDocument.js";
+
+const routerUsers = Router();
+
+routerUsers.get("/", getAllUsers);
+routerUsers.get("/email/:email", getUserByEmail);
+routerUsers.get("/:uid", getUserById);
+routerUsers.get("/premium/:uid", checkUserDocuments, changeRole);
+routerUsers.delete("/:uid", deleteUser);
+routerUsers.delete("/", deleteUsers);
+routerUsers.post("/:uid/documents", uploaderFiles, addDatos);
+
+export { routerUsers };

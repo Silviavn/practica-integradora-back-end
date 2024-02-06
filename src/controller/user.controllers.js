@@ -1,286 +1,100 @@
-import {UsersService} from "../Dao/repositories/index.js"; 
-import customError from "../errors/customError.js";
-import {enumErrors} from "../errors/enumError.js";
-import {createHash} from "../util.js";
+import * as userServices from "../services/user.services.js";
+import { logger } from "../utils/logger.js";
 
-import ClientUser from "../Dao/DTOs/clientUser.js";
-
-
-
-export const getAll = async (req, res, next) => {
+const getAllUsers = async (req, res) => {
   try {
-    const getResponse = await UsersService.getAll();
-    if (getResponse.error) customError.create({...getResponse});
-  
-    const getResponseDTO = getResponse.payload.map( productDTO => new ClientUser( productDTO ))
-    return res.send( getResponseDTO );
-
+    const users = await userServices.getAllUsers();
+    res.status(200).json(users);
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const getBy = async (req, res, next) => {
+const getUserById = async (req, res) => {
+  const { uid } = req.params;
   try {
-    const {email, id} = req.query;
-
-    if (!email && !id)
-      customError.create({
-        name: "Error when trying to get a filtered user",
-        message:
-          "It is necessary to define the value of Email or Id to be able to filter a user correctly",
-        cause: "Email or id undefined",
-        code: enumErrors.INVALID_FILTER,
-        statusCode: 400,
-      });
-
-    if (id && id.lenth !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
-
-    const param = email ? {email: email} : {id: id};
-
-    const getResponse = await UsersService.getBy(param);
-    if (getResponse.error) customError.create({...getResponse});
-
-    req.logger.http("statusCode: " + getResponse.status);
-    return res.send(getResponse);
+    const user = await userServices.getUserById(uid);
+    if (!user) return res.status(400).json({ msg: "User not found" });
+    res.status(200).json(user);
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const post = async (req, res, next) => {
+const getUserByEmail = async (req, res) => {
+  const { email } = req.params;
   try {
-    const {firstName, lastName, email, password} = req.body;
-
-    if (!email || !password || !firstName || !lastName)
-      customError.create({
-        name: "Error when trying post a user",
-        message: "complete the inputs to register the user correctly",
-        cause: "Incomplete required inputs",
-        code: enumErrors.MISSING_VALUES,
-        statusCode: 400,
-      });
-
-    const user = {
-      firstName,
-      lastName,
-      email,
-      password: createHash(password),
-      cartId: [],
-      role: "user",
-      documents: [],
-      lastConnection: "",
-    };
-
-    const postResponse = await UsersService.post(user);
-    if (postResponse.error) customError.create({...postResponse});
-
-    req.logger.http("statusCode: " + postResponse.status);
-    return res.send(postResponse);
+    const user = await userServices.getUserByEmail(email);
+    if (!user) return res.status(400).json({ msg: "User not found" });
+    res.status(200).json(user);
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const postDocuments = async (req, res, next) => {
+const deleteUser = async (req, res) => {
+  const { uid } = req.params;
   try {
-    const user = req.user;
-    const files = req.files;
-    console.log(user);
-    if (!files)
-      customError.create({
-        name: "Error when trying post documents",
-        message: "Send files",
-        cause: "Files not send",
-        code: enumErrors.MISSING_VALUES,
-        statusCode: 400,
-      });
-
-    if (!Object.keys(files).length)
-      customError.create({
-        name: "Error when trying post documents",
-        message: "Send at least one document",
-        cause: "The expected document was not received",
-        code: enumErrors.MISSING_VALUES,
-        statusCode: 400,
-      });
-
-    let documents = {};
-
-    for (const file in files) {
-      documents[file] = files[file][0];
-    }
-
-    const postResponse = await UsersService.postDocuments(
-      {email: user.email},
-      documents
-    );
-    if (postResponse.error) customError.create({...postResponse});
-
-    req.logger.http("statusCode: " + postResponse.status);
-    return res.send(postResponse);
+    const user = await userServices.getUserById(uid);
+    if (!user) return res.status(404).json({ msg: "Usuario no encontrado" });
+    await userServices.deleteUser(uid);
+    res.status(200).json({ status: "success", msg: "Usuario borrado con éxito" });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const putBy = async (req, res, next) => {
+const changeRole = async (req, res) => {
+  const { uid } = req.params;
   try {
-    if (!req.query.email && !req.query.id)
-      customError.create({
-        name: "Error when trying to get a filtered user",
-        message:
-          "It is necessary to define the value of Email or Id to be able to filter a user correctly",
-        cause: "Email or id undefined",
-        code: enumErrors.INVALID_FILTER,
-        statusCode: 400,
-      });
+    const user = await userServices.getUserById(uid);
+    if (!user) return res.status(404).json({ msg: "Usuario no encontrado" });
+    await userServices.changeRole(user.email);
+    const userUpdated = await userServices.getUserById(uid);
 
-    if (req.query.id && req.query.id.lenth !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
-
-    const param = req.query.email
-      ? {email: req.query.email}
-      : {id: req.query.id};
-
-    const {
-      firstName,
-      lastName,
-      email,
-      password,
-      cartId,
-      role,
-      documents,
-      lastConnection,
-    } = req.body;
-
-    if (
-      !firstName &&
-      !lastName &&
-      !email &&
-      !password &&
-      !cartId &&
-      !role &&
-      !documents &&
-      !lastConnection
-    )
-      customError.create({
-        name: "Missing values",
-        message: "None of the expected fields were entered",
-        cause: "Wrong user field",
-        code: enumErrors.MISSING_VALUES,
-        statusCode: 400,
-      });
-
-    const object = {
-      firstName,
-      lastName,
-      email,
-      password,
-      cartId,
-      role,
-      documents,
-      lastConnection,
-    };
-
-    const putResponse = await UsersService.putBy(param, object);
-    if (putResponse.error) customError.create({...putResponse});
-
-    req.logger.http("statusCode: " + putResponse.status);
-    return res.send(putResponse);
+    res.status(200).json({ status: "success", msg: "Rol cambiado con éxito", newRole: userUpdated.role });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const putPremiumRole = async (req, res, next) => {
+const addDatos = async (req, res) => {
+  const { uid } = req.params;
   try {
-    if (!req.query.email && !req.query.id)
-      customError.create({
-        name: "Error when trying to get a filtered user",
-        message:
-          "It is necessary to define the value of Email or Id to be able to filter a user correctly",
-        cause: "Email or id undefined",
-        code: enumErrors.INVALID_FILTER,
-        statusCode: 400,
-      });
+    const user = await userServices.getUserById(uid, req.datos);
+    if (!user) return res.status(404).json({ msg: "Usuario no encontrado" });
+    const datos = Object.values(req.datos).flat();
 
-    if (req.query.id && req.query.id.lenth !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
-
-    const param = req.query.email
-      ? {email: req.query.email}
-      : {_id: req.query.id};
-
-    const putResponse = await UsersService.putPremiumRole(param);
-    if (putResponse.error) customError.create({...putResponse});
-
-    req.logger.http("statusCode: " + putResponse.status);
-    return res.send(putResponse);
+    await userServices.addDatos(uid, datos);
+    const userUpdated = await userServices.getUserById(uid);
+    res.status(200).json({ status: "success", msg: "Archivos subidos con éxito", user: userUpdated });
   } catch (error) {
-    next(error);
-  }
-};
-
-
-export const deleteBy = async (req, res, next) => {
-  try {
-    const { id } = req.params
-    if (!id)
-      customError.create({
-        name: "Error when trying to get a filtered user",
-        message:
-          "It is necessary to define the value of Id to be able to filter a user correctly",
-        cause: "Id undefined",
-        code: enumErrors.INVALID_FILTER,
-        statusCode: 400,
-      });
-
-    const deleteResponse = await UsersService.deleteBy(id);
-    if (deleteResponse.error) customError.create({...deleteResponse});
-
-    req.logger.http("statusCode: " + deleteResponse.status);
-    return res.send(deleteResponse);
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-export const deleteAllOffTime = async (req, res, next) => {
-  try{
-
-    const deleteAllResponse = await UsersService.deleteAllOffTime();
-
-    if( deleteAllResponse.error ) customError.create({...deleteAllResponse})
-
-    return res.send( deleteAllResponse ) 
-
-  } catch ( error ){
-    next ( error );
-  }
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  };
 }
+
+const deleteUsers = async (req, res) => {
+  try {
+    await userServices.deleteUsers();
+    res.status(200).json({ status: "success", msg: "Usuarios borrados con éxito" });
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+export { 
+  changeRole, 
+  getAllUsers, 
+  getUserById, 
+  deleteUser, 
+  getUserByEmail, 
+  addDatos, 
+  deleteUsers 
+};

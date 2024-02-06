@@ -1,4 +1,4 @@
-import productModel from "../models/products.model";
+import { productModel } from "../models/products.model.js";
 
 
 // Llamamos todos los productos
@@ -9,6 +9,7 @@ const getAllProducts = async (query, options) => {
 
 // Llamamos un producto por su id
 const getProductById = async (id) => {
+  console.log(id)
   const productFind = await productModel.findOne({ _id: id });
   return productFind;
 };
@@ -36,4 +37,10 @@ const deleteProduct = async (id) => {
   return productDelete;
 };
 
-export { addProduct, updateProduct, deleteProduct, getAllProducts, getProductById };
+export { 
+  addProduct, 
+  updateProduct, 
+  deleteProduct, 
+  getAllProducts, 
+  getProductById 
+};

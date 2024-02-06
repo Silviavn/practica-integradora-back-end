@@ -1,4 +1,4 @@
-import messageModel from "../models/messages.model";
+import { messageModel } from "../models/messages.model.js";
 
 
 const getMessages = async () => {
@@ -12,4 +12,7 @@ const saveMessage = async (message) => {
   return newMessage;
 };
 
-export { getMessages, saveMessage };
+export { 
+  getMessages, 
+  saveMessage 
+};

@@ -1,310 +1,199 @@
-import {CartsService} from "../Dao/repositories/index.js";
-import customError from "../errors/customError.js";
-import {enumErrors} from "../errors/enumError.js";
+import * as cartServices from "../services/cart.services.js";
+import * as productServices from "../services/product.services.js";
+import { logger } from "../utils/logger.js";
 
-export const getAll = async (req, res, next) => {
+const getAllCarts = async (req, res) => {
   try {
-    const getResponse = await CartsService.getAll();
-    if (getResponse.error) customError.create({...getResponse});
-
-    req.logger.http("statusCode: " + getResponse.status);
-    return res.send(getResponse);
+    const carts = await cartServices.getAllCarts();
+    res.status(200).json(carts);
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const getById = async (req, res, next) => {
+const getCartById = async (req, res) => {
+  const { cid } = req.params;
   try {
-    const id = req.params.cid;
-    if (id.length !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
+    // Buscamos si existe el carrito y el producto en la base de datos
+    const cart = await cartServices.getCartById(cid);
+    if (!cart) return res.status(404).json({ msg: "Carrito no encontrado" });
 
-    const getResponse = await CartsService.getById(id);
-    if (getResponse.error) customError.create({...getResponse});
-
-    req.logger.http("statusCode: " + getResponse.status);
-    return res.send(getResponse);
+    res.status(200).json(cart);
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const post = async (req, res, next) => {
+const addCart = async (req, res) => {
   try {
-    const {products} = req.body;
-
-    if (!products) {
-      const postResponse = await CartsService.post();
-      if (postResponse.error) customError.create({...postResponse});
-
-      req.logger.http("statusCode: " + postResponse.status);
-      return res.send(postResponse);
-    }
-
-    if (!Array.isArray(products))
-      customError.create({
-        name: "Error when trying update product of cart",
-        message: "Send an array of products",
-        cause: "The value received is different of array",
-        code: enumErrors.UNEXPECTED_VALUE,
-        statusCode: 400,
-      });
-
-    const validProducts = products.every((product) => {
-      const keys = Object.keys(product);
-      return (
-        keys.length === 2 && keys.includes("pid") && keys.includes("quantity")
-      );
-    });
-
-    if (!validProducts)
-      customError.create({
-        statusCode: 400,
-        name: "Object invalid",
-        cause: "The schema of product is invalid",
-        message: "review the schematic of the shipped products and try again",
-        code: enumErrors.INVALID_REQUEST,
-      });
-
-    const postResponse = await CartsService.post(products);
-    if (postResponse.error) customError.create({...postResponse});
-
-    req.logger.http("statusCode: " + postResponse.status);
-    return res.send(postResponse);
+    const carts = await cartServices.addCart();
+    res.status(200).json(carts);
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const postProductToCart = async (req, res, next) => {
+const addProductToCart = async (req, res) => {
+  const { cid, pid } = req.params;
   try {
-    const user = req.user;
-    const {cid, pid} = req.params;
+    // Buscamos si existe el carrito y el producto en la base de datos
+    const cart = await cartServices.getCartById(cid);
+    if (!cart) return res.status(404).json({ msg: "Carrito no encontrado" });
+    
 
-    if (cid.length !== 24 || pid.length !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
+    const product = await productServices.getProductById(pid);
+    if (!product) return res.status(404).json({ msg: "Producto no encontrado" });
 
-    const postResponse = await CartsService.postProductToCart(cid, pid, user);
-    if (postResponse.error) customError.create({...postResponse});
+    const user = req.session.user;
+    if(user.email === product.owner) return res.status(403).json({ msg: "No puede agregar un producto propio al carrito" });
 
-    req.logger.http("statusCode: " + postResponse.status);
-    return res.send(postResponse);
+    const response = await cartServices.addProductToCart(cid, pid);
+
+    res.status(200).json({ msg: "Producto agregado al carrito", products: response.products });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const putProducts = async (req, res, next) => {
+const addProductInUserCart = async (req, res) => {
+  const { pid } = req.params;
+  const { user } = req.session;
   try {
-    const {products} = req.body;
-    const cid = req.params.cid;
+    const product = await productServices.getProductById(pid);
+    if (!product) return res.status(404).json({ msg: "Producto no encontrado" });
 
-    if (cid.length !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
+    const response = await cartServices.addProductToCart(user.cart, pid);
 
-    if (!products)
-      customError.create({
-        name: "Products is undefined",
-        message: "Send an array of products",
-        cause: "Products not shipped",
-        statusCode: 400,
-        code: enumErrors.INVALID_REQUEST,
-      });
-
-    if (!Array.isArray(products))
-      customError.create({
-        name: "Error when trying update product of cart",
-        message: "Send an array of products",
-        cause: "The value received is different of array",
-        code: enumErrors.UNEXPECTED_VALUE,
-        statusCode: 400,
-      });
-
-    const validProducts = products.every((product) => {
-      const keys = Object.keys(product);
-      return (
-        keys.length === 2 && keys.includes("pid") && keys.includes("quantity")
-      );
-    });
-
-    if (!validProducts)
-      customError.create({
-        statusCode: 400,
-        name: "Object invalid",
-        cause: "The schema of product is invalid",
-        message: "review the schematic of the shipped products and try again",
-        code: enumErrors.INVALID_REQUEST,
-      });
-
-    const putResponse = await CartsService.putProducts(cid, products);
-    if (putResponse.error) customError.create({...putResponse});
-
-    req.logger.http("statusCode: " + putResponse.status);
-    return res.send(putResponse);
+    res.status(200).json({ msg: "Producto agregado al carrito", products: response.products });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const putProductQuantity = async (req, res, next) => {
+const deleteCart = async (req, res) => {
+  const { cid } = req.params;
   try {
-    const {quantity} = req.body;
-    const {cid, pid} = req.params;
+    // Buscamos si existe el carrito
+    const cart = await cartServices.getCartById(cid);
+    if (!cart) return res.status(404).json({ msg: "Carrito no encontrado" });
 
-    if (cid.length !== 24 || pid.length !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
+    await cartServices.deleteCart(cid);
 
-    if (!quantity)
-      customError.create({
-        name: "Missing values",
-        cause: "I miss sending the value of quantity",
-        message: "Send the quantity",
-        statusCode: 400,
-        code: enumErrors.MISSING_VALUES,
-      });
-
-    if (typeof quantity !== "number")
-      customError.create({
-        name: "Error when trying update quantity from product",
-        message: "Send number value of quantity",
-        cause: "The value received is different of number",
-        code: enumErrors.UNEXPECTED_VALUE,
-        statusCode: 400,
-      });
-
-    const putResponse = await CartsService.putProductQuantity(
-      cid,
-      pid,
-      quantity
-    );
-    if (putResponse.error) customError.create({...putResponse});
-
-    req.logger.http("statusCode: " + putResponse.status);
-    return res.send(putResponse);
+    res.status(200).json({ msg: "Carrito eliminado" });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const deleteProductToCart = async (req, res, next) => {
+const deleteProductFromCart = async (req, res) => {
+  const { cid, pid } = req.params;
   try {
-    const {cid, pid} = req.params;
+    // Buscamos si existe el carrito y el producto en la base de datos
+    const cart = await cartServices.getCartById(cid);
+    if (!cart) return res.status(404).json({ msg: "Carrito no encontrado" });
 
-    if (cid.length !== 24 || pid.length !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
+    const product = await productServices.getProductById(pid);
+    if (!product) return res.status(404).json({ msg: "Producto no encontrado" });
 
-    const deleteResponse = await CartsService.deleteProductToCart(cid, pid);
-    if (deleteResponse.error) customError.create({...deleteResponse});
+    // Buscamos si existe el producto en el carrito
+    const productInCart = cart.products.find((product) => product.product == pid);
+    if (!productInCart) return res.status(404).json({ msg: "Producto no encontrado en el carrito" });
 
-    req.logger.http("statusCode: " + deleteResponse.status);
-    return res.send(deleteResponse);
+    await cartServices.removeProductFromCart(cid, pid);
+
+    res.status(200).json({ msg: "Producto eliminado del carrito" });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const deleteProducts = async (req, res, next) => {
+const deleteAllProductsFromCart = async (req, res) => {
+  const { cid } = req.params;
   try {
-    const cid = req.params.cid;
-    if (cid.length !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
+    // Buscamos si existe el carrito y el producto en la base de datos
+    const cart = await cartServices.getCartById(cid);
+    if (!cart) return res.status(404).json({ msg: "Carrito no encontrado" });
 
-    const deleteResponse = await CartsService.deleteProducts(cid);
-    if (deleteResponse.error) customError.create({...deleteResponse});
+    await cartServices.removeAllProductsFromCart(cid);
 
-    req.logger.http("statusCode: " + deleteResponse.status);
-    return res.send(deleteResponse);
+    res.status(200).json({ msg: "Productos eliminados del carrito" });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
+const updateProductsFromCart = async (req, res) => {
+  const { cid } = req.params;
+  const { products } = req.body;
 
-export const deleteById = async (req, res, next) => {
   try {
-    const cid = req.params.cid;
-    if (cid.length !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
-
-    const deleteResponse = await CartsService.deleteById(cid);
-    if (deleteResponse.error) customError.create({...deleteResponse});
-
-    req.logger.http("statusCode: " + deleteResponse.status);
-    return res.send(deleteResponse);
+    const response = await cartServices.updateCart(cid, products);
+    res.status(200).json({ msg: "Carrito actualizado", response });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-export const purchase = async (req, res, next) => {
+const updateProductQuantityFromCart = async (req, res) => {
+  const { cid, pid } = req.params;
+  const { quantity } = req.body;
   try {
-    //const purchaser = req.user.email;
-    const cid = req.params.cid;
-    if (cid.length !== 24)
-      customError.create({
-        name: "Invalid id",
-        cause: "The length of id is incorrect",
-        message: "Send id of 24 characters",
-        code: enumErrors.INVALID_REQUEST,
-        statusCode: 400,
-      });
+    // Buscamos si existe el carrito y el producto en la base de datos
+    const cart = await cartServices.getCartById(cid);
+    if (!cart) return res.status(404).json({ msg: "Carrito no encontrado" });
 
-    const purchaseResponse = await CartsService.purchase(cid);
-    if (purchaseResponse.error) customError.create({...purchaseResponse});
+    const product = await productServices.getProductById(pid);
+    if (!product) return res.status(404).json({ msg: "Producto no encontrado" });
 
-    req.logger.http("statusCode: " + purchaseResponse.status);
-    return res.send(purchaseResponse);
+    // Buscamos si existe el producto en el carrito
+    const productInCart = cart.products.find((product) => product.product == pid);
+    if (!productInCart) return res.status(404).json({ msg: "Producto no encontrado en el carrito" });
+
+    await cartServices.updateProductQuantity(cid, pid, parseInt(quantity));
+
+    res.status(200).json({ msg: `Cantidad de productos actualizada a ${quantity}` });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
+};
+
+const purchaseCart = async (req, res) => {
+  const { cid } = req.params;
+  const user = req.session.user;
+  try {
+    // Buscamos si existe el carrito y el producto en la base de datos
+    const cart = await cartServices.getCartById(cid);
+    if (!cart) return res.status(404).json({ msg: "Carrito no encontrado" });
+
+    const response = await cartServices.purchaseCart(cid, user);
+
+    res.status(200).json({ msg: "Compra realizada", response });
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+export {
+  getAllCarts,
+  getCartById,
+  addCart,
+  addProductToCart,
+  deleteCart,
+  deleteProductFromCart,
+  deleteAllProductsFromCart,
+  updateProductsFromCart,
+  updateProductQuantityFromCart,
+  addProductInUserCart,
+  purchaseCart,
 };

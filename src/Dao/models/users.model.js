@@ -1,22 +1,30 @@
-import mongoose from "mongoose";
+import { Schema, model } from "mongoose";
 
-const usersCollection = "users";
 
-const userSchema = new mongoose.Schema(
+const userSchema = new Schema(
   {
-    firstName: String,
-    lastName: String,
+    first_name: {
+      type: String,
+      Required: true,
+    },
+    last_name: {
+      type: String,
+    },
+
+    age: Number,
+
     email: {
       type: String,
-      required: true,
-      unique: true,
+      Required: true,
+      Unique: true,
     },
-    age: Number,
-    password: String,
+    password: {
+      type: String,
+    },
     cartId: {
       type: [
         {
-          type: mongoose.SchemaTypes.ObjectId,
+          type: Schema.Types.ObjectId,
           ref: "carts",
         },
       ],
@@ -40,9 +48,9 @@ const userSchema = new mongoose.Schema(
       },
     ],
     lastConnection: String,
-  },
-  {versionKey: false}
-);
+});
+  
 
-const userModel = mongoose.model(usersCollection, userSchema);
-export default userModel;
+
+const userModel = model("user", userSchema);
+export { userModel };

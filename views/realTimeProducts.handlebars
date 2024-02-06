@@ -1,0 +1,134 @@
+ <title>Formulario de Productos</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+    }
+
+    nav {
+        background-color: #333;
+        color: #fff;
+        padding: 10px;
+        text-align: center;
+    }
+
+    form {
+        background-color: #fff;
+        border: 1px solid #ccc;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        margin: 20px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    input,
+    select {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 16px;
+        box-sizing: border-box;
+    }
+
+    button {
+        background-color: #4caf50;
+        color: #fff;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #45a049;
+    }
+
+    #imagePreview {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 16px;
+            display: none; /* Ocultar la imagen inicialmente */
+    }        
+</style>
+</head>
+
+<body>
+
+
+    <center>
+        <form id="productForm" class="d-flex flex-column col-5" action="/api/products" method="post">
+            <label for="">Título</label>
+            <input type="text" name="title" id="title" />
+
+            <label for="">Precio</label>
+            <input type="number" name="price" id="price" />
+
+            <label for="">Descripción</label>
+            <input type="text" name="description" id="description" />
+
+            <label for="">Imagen</label>
+            <input type="texto" accept="" name="thumbnail" id="thumbnail" />
+
+            <label for="">Status</label>
+            <select name="status" id="status">
+                <option value="true">Disponible</option>
+                <option value="false">No disponible</option>
+            </select>
+
+            <label for="">Stock</label>
+            <input type="number" name="stock" id="stock" />
+
+            <label for="">Código</label>
+            <input type="text" id="code" name="code" />
+
+            <label for="">Categoría</label>
+            <input type="text" id="category" name="category" />
+
+            <button type="submit" class="btn btn-primary">Agregar</button>
+        </form>
+
+        
+        <form action="" class="ms-3 mt-3 d-flex flex-column col-5" id="formDelete">
+            <label for="">ID producto a eliminar</label>
+            <input type="text" name="id" id="id" />
+            <button type="submit" class="btn btn-danger">Eliminar</button>
+        </form>
+
+
+
+        <div id="productsContainer" class="row"></div>
+
+
+    </center>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/index.js"></script>
+
+
+    <!-- Resto de tu código... -->
+
+    <!-- Script para mostrar la vista previa de la imagen -->
+    {{!--
+    <script>
+        function previewImage() {
+            var input = document.getElementById('thumbnail');
+            var preview = document.getElementById('imagePreview');
+
+            var file = input.files[0];
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    </script> --}}
+
+</body>

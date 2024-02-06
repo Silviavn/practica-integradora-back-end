@@ -1,276 +1,113 @@
 import passport from "passport";
-import {Strategy as LocalStrategy} from "passport-local";
-import {Strategy as JwtStrategy, ExtractJwt} from "passport-jwt";
-import {createHash, isCorrect} from "../util.js";
-import githubService from "passport-github";
-import { CartsService, UsersService } from "../Dao/repositories/index.js";
-import nodemailer from "nodemailer";
-import jwt from "jsonwebtoken";
-import config from "./config.js";
+import GitHubStrategy from "passport-github2"
+import local from "passport-local";
+import { createHash, isValidPassword } from "../utils/hashPassword.js";
+import * as userServices from "../services/user.services.js";
+import * as cartServices from "../services/cart.services.js";
+import { logger } from "../utils/logger.js";
 
 
 
-const transport = nodemailer.createTransport({
-  service: "gmail",
-  port: 5087,
-  auth: {
-    user: config.nodemailer_user,
-    pass: config.nodemailer_password,
-  },
-});
 
+const LocalStrategy = local.Strategy;
+const initializePassport = () => {
+  passport.use(
+    "register",
+    new LocalStrategy({ passReqToCallback: true, usernameField: "email" }, async (req, username, password, done) => {
+     
+      const { first_name, last_name, age, email, role } = req.body;
 
-
-const cookieExtractor = (req) => {
-  let token = null;
-  if (req && req.cookies) {
-    token = req.cookies["coderCookieToken"];
-  }
-  return token;
-};
-
-
-
-const recoverExtractor = (req) => {
-  let token = null;
-  if (req && req.params) {
-    token = req.params.token;
-    jwt.verify(
-      token,
-      config.privateKey,
-      {maxAge: 1000 * 60},
-      function (err, decoded) {
-        if (err) return err;
-        token = decoded;
-      }
-    );
-  }
-  return token;
-};
-
-
-
-const initPassport = () => {
-
-
-  passport.use("jwt",
-    new JwtStrategy(
-      {
-        jwtFromRequest: ExtractJwt.fromExtractors([cookieExtractor]),
-        secretOrKey: config.privateKey,
-      },
-      async (jwt_payload, done) => {
-        try {
-          return done(null, jwt_payload, {
-            message: "Mensaje de prueba para probar los errores personalizados",
-          });
-        } catch (error) {
-          return done(error, false, {message: "Mensaje de ERROR de prueba"});
+      try {
+        let user = await userServices.getUserByEmail(username);
+        if (user) {
+          // null significa que no hay error y el false que no se pudo crear el usuario
+          return done(null, false);
         }
+
+        // Creamos una carrito para el usuario
+        const cart = await cartServices.addCart();
+
+        const newUser = {
+          first_name,
+          last_name,
+          age,
+          email,
+          cart: cart._id,
+          password: createHash(password),
+          role,
+          last_connection: new Date(),
+        };
+
+        let result = await userServices.createUser(newUser);
+        // null significa que no hay error y result es el usuario creado
+        return done(null, result);
+      } catch (error) {
+        return done("Error al obtener el usuario" + error);
       }
-    )
+    })
   );
-
-
-
-  passport.use("recover",
-    new JwtStrategy(
-      {
-        jwtFromRequest: ExtractJwt.fromExtractors([recoverExtractor]),
-        secretOrKey: config.privateKey,
-        passReqToCallback: true,
-      },
-      async (jwt_payload, done) => {
-        try {
-          return done(null, jwt_payload, {
-            message: "Mensaje de prueba para probar los errores personalizados",
-          });
-        } catch (error) {
-          return done(error, false, {message: "Mensaje de ERROR de prueba"});
-        }
-      }
-    )
-  );
-
-
-
-  passport.use("github",
-    new githubService(
-      {
-        clientID: config.clientId,
-        clientSecret: config.clientSecret,
-        callbackURL: config.callbackURL, 
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          const getUser = await UsersService.getBy({
-            email: profile._json.email,
-          });
-          if (getUser.error && getUser.statusCode === 500) return done(getUser);
-
-          if (getUser.error && getUser.statusCode === 404) {
-            const newUser = {
-              firstName: profile._json.name,
-              lastName: "",
-              email: profile._json.email,
-              password: "",
-            };
-
-            const postResponse = await UsersService.post(newUser);
-            if (postResponse.error) return done(postResponse);
-
-            await transport.sendMail({
-              from: "silviavergara@gmail.com",
-              to: `${email}`,
-              subject: "Aviso sobre registro en coderCommerce",
-              text: `Usuario registrado correctamente con Github.`,
-            });
-
-            return done(null, postResponse.payload);
-          }
-          const user = getUser.payload;
-          return done(null, user);
-        } catch (error) {
-          return done(error);
-        }
-      }
-    )
-  );
-
-
-
-  passport.use("register",
-    new LocalStrategy(
-      {passReqToCallback: true, usernameField: "email"},
-      async (req, email, password, done) => {
-        const {firstName, lastName, age} = req.body;
-        try {
-          const getUser = await UsersService.getBy({email});
-          if (!getUser.error) {
-            return done(null, false, {message: "The user already exist"});
-          }
-
-          if (getUser.error && getUser.statusCode === 500) return done(getUser);
-
-          const newUser = {
-            firstName,
-            lastName,
-            age,
-            cartId: undefined,
-            email,
-            password: createHash(password),
-            role: "user",
-            documents: [],
-            lastConnection: "",
-          };
-
-          await transport.sendMail({
-            from: "silviavergara@gmail.com",
-            to: `${email}`,
-            subject: "Aviso sobre registro en coderCommerce",
-            text: `Usuario registrado correctamente. \n Credenciales: Email: ${email} Password: ${password}`,
-          });
-
-          const postResponse = await UsersService.post(newUser);
-          if (postResponse.error) return done(postResponse);
-
-          return done(null, postResponse.payload, {
-            message: "User created successfully",
-          });
-        } catch (error) {
-          return done(error);
-        }
-      }
-    )
-  );
-
-
-
-  passport.use( "login",
-    new LocalStrategy(
-      {usernameField: "email", session: false},
-      async (email, password, done) => {
-        try {
-          if (
-            email === "adminCoder@coder.com" &&
-            password === "adminCod3r123"
-          ) {
-            const postCartResponse = await CartsService.post();
-            if (postCartResponse.error) return done(postCartResponse);
-
-            const cartId =
-              postCartResponse.payload._id || postCartResponse.payload.id;
-            const user = {
-              firstName: "Coder",
-              lastName: "Admin",
-              age: 999,
-              email,
-              password,
-              cartId,
-              role: "admin",
-              documents: [],
-              lastConnection: new Date().toLocaleString(),
-            };
-            return done(null, user);
-          }
-
-          const getUser = await UsersService.getBy({email});
-          if (getUser.error && getUser.statusCode === 500) return done(getUser);
-          if (getUser.error && getUser.statusCode === 404)
-            return done(null, false, {message: "Email not registered"});
-          const user = getUser.payload;
-
-          if (!isCorrect(user, password))
-            return done(null, false, {
-              message: "Incorrect password",
-            });
-
-          const postCartResponse = await CartsService.post();
-          if (postCartResponse.error) return done(postCartResponse);
-
-          const cartId =
-            postCartResponse.payload._id || postCartResponse.payload.id;
-          const lastConnection = new Date().toLocaleString();
-
-          user.cartId = cartId;
-          user.lastConnection = lastConnection;
-
-          const updateUserResponse = await UsersService.putBy(
-            {email},
-            {cartId, lastConnection}
-          );
-          if (updateUserResponse.error) return done(updateUserResponse);
-
-          await transport.sendMail({
-            from: process.env.NODEMAILER_USER,
-            to: `${email}`,
-            subject: "Aviso de inicio de sesion",
-            text: `Una persona ha iniciado sesion en su cuenta, si no ha sido usted le recomendamos cambiar la contraseña - ${new Date().toLocaleString()}`,
-          });
-
-          return done(null, user);
-        } catch (error) {
-          return done(error);
-        }
-      }
-    )
-  );
-
-
 
   passport.serializeUser((user, done) => {
-    done(null, user._id || user.id);
+    // null significa que no hay error y user._id es el id del usuario
+    done(null, user._id);
   });
 
-
-
   passport.deserializeUser(async (id, done) => {
-    const getResponse = await UsersService.getBy({id});
-    if (getResponse.error) return done(getResponse);
-    const user = getResponse.payload;
+    let user = await userServices.getUserById(id);
     done(null, user);
   });
 
+  passport.use(
+    "login",
+    new LocalStrategy({ usernameField: "email" }, async (username, password, done) => {
+      try {
+        const user = await userServices.getUserByEmail(username);
+        if (!user) {
+          logger.error(`El usuario con el mail ${username} no existe`);
+          return done(null, false);
+        }
+
+        if (!isValidPassword(user, password)) return done(null, false);
+
+        return done(null, user);
+      } catch (error) {
+        return done("Error al obtener el usuario" + error);
+      }
+    })
+  );
+
+  passport.use("github", new GitHubStrategy({
+        clientID: "Iv1.62904e5ec63cead5",
+        clientSecret: "bca181fea899b7e5f55acea61d71d41a27896e5e",
+        callbackURL: "http://localhost:8080/api/sessions/githubcallback",
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const user = await userServices.getUserByEmail(profile._json.email);
+          console.log(user)
+          if (!user) {
+            // Si el email viene en null o undefined, le asignamos el id de github
+            const email = profile._json.email || profile._json.id;
+            const newUser = {
+              first_name: profile._json.name,
+              last_name: "",
+              age: 18,
+              email,
+              password: "",
+            };
+            const result = await userServices.createUser(newUser);
+            return done(null, result);
+          }
+
+          return done(null, user);
+        } catch (error) {
+          return done("Error al obtener el usuario" + error);
+        }
+      }
+    )
+  );
 };
 
-export default initPassport;
+export { 
+  initializePassport 
+};

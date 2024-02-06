@@ -1,47 +1,37 @@
-import {TicketsService} from "../Dao/repositories/index.js";
-import customError from "../errors/customError.js";
+import * as ticketService from "../services/ticket.services.js";
+import * as cartService from "../services/cart.services.js";
+import { logger } from "../utils/logger.js";
 
-export const getAll = async (req, res, next) => {
+const generateTicket = async (req, res) => {
   try {
-    const getResponse = await TicketsService.getAll();
-    if (getResponse.error) customError.create({...getResponse});
+    const user = req.user;
+    const cart = await cartService.getCartFromEmail(user.email);
+    const data = {
+      purchaser: user.email,
+      amount: cart.total,
+    };
 
-    req.logger.http("statusCode: " + getResponse.status);
-    return res.send(getResponse);
+    const ticket = await ticketService.generateTicket(data);
+
+    res.status(201).json(ticket);
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const getById = async (req, res, next) => {
+const getTicketFromEmail = async (req, res) => {
   try {
-    const {tid} = req.params
-
-    const getResponse = await TicketsService.getById(tid);
-    if (getResponse.error) customError.create({...getResponse});
-
-    req.logger.http("statusCode: " + getResponse.status);
-    return res.send(getResponse);
+    const user = req.user;
+    const ticket = await ticketService.getTicketFromEmail(user.email);
+    res.status(200).json(ticket);
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const post = async (req, res, next) => {
-  try {
-    const {cartId, uid} = req.body;
-    const ticket = [cartId,uid]
-    if (!cartId && !uid) {
-      const postResponse = await TicketsService.post(ticket);
-      if (postResponse.error) customError.create({...postResponse});
-
-      req.logger.http("statusCode: " + postResponse.status);
-      return res.send(postResponse);
-    }
-
-  } catch (error) {
-    next(error);
-  }
+export { 
+  generateTicket, 
+  getTicketFromEmail 
 };

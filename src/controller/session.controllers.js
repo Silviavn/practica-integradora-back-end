@@ -1,154 +1,66 @@
-import {CartsService, UsersService} from "../Dao/repositories/index.js";
-import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
-import {createHash, isCorrect} from "../util.js";
-import config from "../config/config.js";
-import ClientUser from "../Dao/DTOs/clientUser.js";
-import CustomError from "../errors/customError.js";
+import { userDTO } from "../dto/user.dto.js";
+import { logger } from "../utils/logger.js";
+import * as userServices from "../services/user.services.js";
 
-
-const transport = nodemailer.createTransport({
-  service: "gmail",
-  port: 5087,
-  auth: {
-    user: "jesubes@gmail.com",
-    pass: "pabsrnzqnaerhpps",
-  },
-});
-
-
-export const github = (req, res) => {};
-
-
-export const githubCallback = (req, res) => {
+const login = async (req, res) => {
   try {
-    const token = jwt.sign(req.user, config.cookieSecret, {
-      expiresIn: "1h",
-    });
-    res.cookie("coderCookieToken", token, {
-      maxAge: 1000 * 60 * 60,
-      httpOnly: true,
-    });
-    res.redirect("/");
+   
+    if (!req.user) return res.status(400).send({ status: "error", message: "Error credenciales inválidas" });
+
+    req.session.user = userDTO(req.user);
+    
+    console.log(login)
+
+    await userServices.addLastConnection(req.user._id, new Date());
+
+    res.send({ status: "success", payload: req.session.user });
+    
   } catch (error) {
-    next(error);
+    logger.error(error.message); 
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const register = (req, res, next) => {
+const logout = async (req, res) => {
   try {
-    return res.send({
-      status: 200,
-      message: "User registered",
+
+    await userServices.addLastConnection(req.session.user._id, new Date());
+    // Destruimos la sesión
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Error al cerrar sesión" });
+      }
+      // Devolvemos el mensaje de sesión cerrada
+      res.json({ message: "Sesión cerrada" });
     });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const login = async (req, res, next) => {
+const current = async (req, res) => {
   try {
-    const token = jwt.sign(req.user, config.cookieSecret, {
-      expiresIn: "1h",
-    });
-    res.cookie("coderCookieToken", token, {
-      maxAge: 1000 * 60 * 60,
-      httpOnly: true,
-    });
-    res.send({
-      status: 200,
-      message: "Login success",
-    });
+    res.send({ status: "success", payload: req.session.user });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const logout = async (req, res, next) => {
+const github = async (req, res) => {
   try {
-    const cartId = req.user.cartId;
-
-    const deleteCartResponse = await CartsService.deleteById(cartId);
-    if (deleteCartResponse.error) return deleteCartResponse;
-
-    const userUpdateResponse = await UsersService.putBy(
-      {_id: req.user._id},
-      {cartId: [], lastConnection: new Date().toLocaleString()}
-    );
-    if (userUpdateResponse.error) return userUpdateResponse;
-
-    return res
-      .clearCookie("coderCookieToken")
-      .send({status: 200, message: "Logout success"});
+    req.session.user = userDTO(req.user);
+    res.redirect("/profile");
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const recover = async (req, res, next) => {
-  try {
-    const {email} = req.body;
-    if (!email)
-      return res.status(400).send({status: 404, error: "Incomplete values"});
-
-    const getUser = await UsersService.getBy({email});
-    if (getUser.error)
-      return res.status(404).send({status: 404, error: "Email not registered"});
-
-    const token = jwt.sign({email}, config.cookieSecret, {
-      expiresIn: 1000 * 60 * 60,
-    });
-
-    await transport.sendMail({
-      from: "marina@gmail.com",
-      to: `${email}`,
-      subject: "Correo de recuperacion",
-      html: `<a href="http://localhost:8080/recoverPassword/${token}">Cambiar contraseña</a>`,
-    });
-
-    return res.send({status: 200, message: "Password updated"});
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-export const recoverPassword = async (req, res, next) => {
-  try {
-    const token = req.token;
-    const {password} = req.body;
-
-    if (!password)
-      return res.status(400).send({status: 404, error: "Incomplete values"});
-
-    const user = await UsersService.getBy({email: token.email});
-    const isIdentic = isCorrect(user, password);
-
-    if (isIdentic) return res.send({status: 404, error: "Write new password"});
-
-    const putResponse = await UsersService.putBy(
-      {email: token.email},
-      {password: createHash(password)}
-    );
-    if (putResponse.error) CustomError.create({...putResponse});
-
-    return res.send({status: "success", message: "Password updated"});
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-
-export const current = (req, res, next) => {
-  try {
-    const user = new ClientUser(req.user);
-    return res.send(user);
-  } catch (error) {
-    next(error);
-  }
+export { 
+  login, 
+  logout, 
+  current, 
+  github 
 };

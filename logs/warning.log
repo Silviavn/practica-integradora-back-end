@@ -1,0 +1,97 @@
+error: user is not defined
+error: Invalid scheme, expected connection string to start with "mongodb://" or "mongodb+srv://"
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: cartService.addCart is not a function
+error: cartService.addCart is not a function
+error: cartService.addCart is not a function
+error: cartService.addCart is not a function
+error: The `uri` parameter to `openUri()` must be a string, got "undefined". Make sure the first parameter to `mongoose.connect()` or `mongoose.createConnection()` is a string.
+error: m is not defined
+error: The `uri` parameter to `openUri()` must be a string, got "undefined". Make sure the first parameter to `mongoose.connect()` or `mongoose.createConnection()` is a string.
+error: MONGO_URL is not defined
+error: The `uri` parameter to `openUri()` must be a string, got "undefined". Make sure the first parameter to `mongoose.connect()` or `mongoose.createConnection()` is a string.
+error: cartService.addCart is not a function
+error: role is not defined
+error: role is not defined
+error: role is not defined
+error: role is not defined
+error: user is not defined
+error: No default engine was specified and no extension was provided.
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: The `uri` parameter to `openUri()` must be a string, got "undefined". Make sure the first parameter to `mongoose.connect()` or `mongoose.createConnection()` is a string.
+error: The `uri` parameter to `openUri()` must be a string, got "undefined". Make sure the first parameter to `mongoose.connect()` or `mongoose.createConnection()` is a string.
+error: The `uri` parameter to `openUri()` must be a string, got "undefined". Make sure the first parameter to `mongoose.connect()` or `mongoose.createConnection()` is a string.
+error: The `uri` parameter to `openUri()` must be a string, got "undefined". Make sure the first parameter to `mongoose.connect()` or `mongoose.createConnection()` is a string.
+error: Cast to ObjectId failed for value ":65b6b22c57fe9928a2d48e4b" (type string) at path "_id" for model "user"
+error: Error al generar productos de mock
+error: Error al generar productos de mock
+error: Error al generar productos de mock
+error: Error al generar productos de mock
+error: Error al generar productos de mock
+error: Error al generar productos de mock
+error: Error al generar productos de mock
+error: Error al generar productos de mock
+error: Cannot read properties of null (reading '_id')
+error: Cast to ObjectId failed for value "admin" (type string) at path "_id" for model "user"
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: user is not defined
+error: user is not defined
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: Cannot read properties of undefined (reading 'query')
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: user is not defined
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: Cannot read properties of null (reading '_id')
+error: userUser is not defined
+error: Cannot access 'cartUser' before initialization
+error: Cannot read properties of null (reading '_id')
+error: userServices.addToCart is not a function
+error: userServices.addCart is not a function
+error: createEmptyCart is not defined
+error: ticket validation failed: purchaseDateTime: Path `purchaseDateTime` is required.
+error: ticket validation failed: purchaseDateTime: Path `purchaseDateTime` is required.
+error: ticket validation failed: purchaseDateTime: Path `purchaseDateTime` is required.
+error: ticket validation failed: purchaseDateTime: Path `purchaseDateTime` is required.
+error: ticket validation failed: purchaseDateTime: Path `purchaseDateTime` is required.
+error: ticket validation failed: purchaseDateTime: Path `purchaseDateTime` is required.
+error: ticket validation failed: purchaseDateTime: Path `purchaseDateTime` is required.
+error: user validation failed: role: `premiun` is not a valid enum value for path `role`.
+error: Cast to ObjectId failed for value "buy" (type string) at path "_id" for model "product"

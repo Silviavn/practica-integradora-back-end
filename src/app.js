@@ -1,73 +1,115 @@
 import express from "express";
-import {Server} from "socket.io";
-import handlebars from "express-handlebars";
-import __dirname from "./util.js";
 import cookieParser from "cookie-parser";
-import indexRouter from "./routes/index.router.js";
-import messageModel from "./Dao/models/messages.model.js";
+import handlebars from "express-handlebars";
 import passport from "passport";
-import initPassport from "./config/passportConfig.js";
-import config from "./config/config.js";
-import handleError from "./middlewares/handleError.js";
-import {addLogger} from "../logs/logger.js";
-import swaggerJSDoc from "swagger-jsdoc";
-import swaggerUi from "swagger-ui-express";
+import session from "express-session";
+import {Server} from "socket.io";
 
+import config from "./config/config.js";
+import { mongoDBConnection } from "./config/mongoDB.confing.js";
+import { initializePassport } from "./config/passportConfig.js";
+import { apiRoutes } from "./routes/api.routes.js";
+import { routerViews } from "./routes/views.router.js";
+import * as messageServices from "./services/message.services.js";
+import * as productServices from "./services/product.services.js";
+import { logger } from "./utils/logger.js";
+
+
+
+// Datos de configuración del servidor
+const { PORT, COOKIE_SECRET } = config;
+
+// Almacenamos express ejecutado en la constante app
 const app = express();
 
-const httpServer = app.listen(config.port, () =>
-  console.log("App listen on port", config.port)
+// Implementamos handlebars
+app.engine(
+  "handlebars",
+  handlebars.engine({
+    runtimeOptions: {
+      allowProtoPropertiesByDefault: true,
+      allowProtoMethodsByDefault: true,
+    },
+  })
 );
 
-const io = new Server(httpServer);
+  app.set("views", "views");
+app.set("view engine", "handlebars");
 
-const swaggerOption = {
+// conectamos mongoose con la base de datos local
+mongoDBConnection();
+app.use(express.static("public"));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(cookieParser(COOKIE_SECRET));
+
+app.use(session({ secret: process.env.COOKIE_SECRET, resave: true, saveUninitialized: true }));
+
+initializePassport();
+app.use(passport.initialize());
+app.use(passport.session());
+
+
+// Configuramos la documentación de la API
+import swaggerJSDoc from "swagger-jsdoc";
+import swaggerUiExpress from "swagger-ui-express";
+
+const swaggerOptions = {
   definition: {
     openapi: "3.0.1",
     info: {
-      title: "API Documentation",
-      description: "Apis que contiene el proyecto",
+      title: "Documentación de la API",
+      description: "Documentación de la API de la aplicación de gestión de productos y carritos de compra",
     },
   },
-  apis: ["./src/docs/**.yaml"],
+  apis: ["./docs/**/*.yaml"],
 };
 
-const specs = swaggerJSDoc(swaggerOption);
+const specs = swaggerJSDoc(swaggerOptions);
 
-app.engine("handlebars", handlebars.engine());
+app.use("/docs", swaggerUiExpress.serve, swaggerUiExpress.setup(specs));
 
-app.set("views", __dirname + "/views");
-app.set("view engine", "handlebars");
+app.use("/api", apiRoutes);
+app.use("/", routerViews);
+app.get("*", (req, res) => {
+  res.status(404).send({ error: "Página no encontrada" });
+});
 
-app.use(cookieParser());
-app.use(express.json({limit: "25mb"}));
-app.use(express.urlencoded({extended: true, limit: "25mb"}));
-app.use(express.static(__dirname + "/public"));
-app.use(addLogger);
-app.use("/apidocs", swaggerUi.serve, swaggerUi.setup(specs));
+const httpServer = app.listen(PORT, () => {
+  logger.info(`Servidor conectado en el puerto ${PORT}`);
+});
 
-initPassport();
-app.use(passport.initialize());
+// Configuramos el servidor de socket io
+const socketServer = new Server(httpServer);
 
-app.use("/", indexRouter);
+// Configuramos los eventos de conexión y desconexión de los clientes
+socketServer.on("connection", async (socket) => {
+  logger.info(`Cliente conectado ${socket.id}`);
+  const products = await productServices.getAllProducts();
+  console.log(products)
 
-app.use(handleError);
+  socket.emit("products", products.docs);
 
-io.on("connection", async (socket) => {
-  console.log("New client connected");
+  const messages = await messageServices.getMessages();
+  socket.emit("messages", messages);
 
-  const logs = await messageModel.find();
-  io.emit("log", {logs});
-  socket.on("message", async (data) => {
-    await messageModel.create({
-      user: data.user,
-      message: data.message,
-      time: data.time,
-    });
-    const logs = await messageModel.find();
-    io.emit("log", {logs});
+  socket.on("new-product", async (data) => {
+    await productServices.addProduct(data);
+    const products = await productServices.getAllProducts();
+    socket.emit("products", products.docs);
   });
-  socket.on("userAuth", (data) => {
-    socket.broadcast.emit("newUser", data);
+
+  socket.on("delete", async (id) => {
+    await productServices.deleteProduct(id);
+    const products = await productServices.getAllProducts();
+    socket.emit("products", products.docs);
+  });
+
+  socket.on("chatMessage", async (data) => {
+    await messageServices.saveMessage(data);
+    const messages = await messageServices.getMessages();
+    socketServer.emit("messages", messages);
   });
 });

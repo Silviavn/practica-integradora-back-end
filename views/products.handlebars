@@ -1,30 +1,34 @@
-<main>
-    {{#if isLogin}}
-    <h2 style="text-align: center; margin-top: 20px; font-size: 14px;">
-      ¡Bienvenido {{user.firstName}} {{user.lastName}}!      
-    </h2>
-    {{/if}}
-    <section class="productsTitlePage">
-      <h1>Productos</h1>
-    </section>
-    <section class="productsContainer">
-      {{#each payload}}
-        <article class="productCard">
-          <img class="productImg" src="{{this.thumbnails}}" />
-          <h3 class="productCategory">{{this.category}}</h3>
-          <h3 class="productTitle">{{this.title}}</h3>
-          <section class="cardSection">
-            <h3 class="productPrice">${{this.price}}</h3>
-            <button class="productButton" onclick="addToCart( '{{this.id}}', '{{this.user.cartId}}', '{{this.urlFront}}')">Add to cart 🛒</button>
-          </section>
-        </article>
-      {{/each}}
-    </section>
-  </main>
-  <section class="productsPaginate">
-    <a href="{{prevLink}}" class="paginateLeftArrow">Anterior</a>
-    <div class="paginateIndexContainer">
-      {{resPage}}
+<div class="container">
+    <h1 class="text-center my-5">Productos</h1>
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {{#each products}}
+        <div class="col">
+            <div class="card h-100">
+                <img src="{{this.thumbnail}}" class="card-img-top img-fluid" alt="{{this.title}}">
+                <div class="card-body">
+                    <h5 class="card-title">{{this.title}}</h5>
+                    <p class="card-text">{{this.description}}</p>
+                    <p class="card-text">{{this.price}}</p>
+                    <a href="/product/{{this.id}}" class="btn btn-outline-dark">Detalles</a>
+                </div>
+            </div>
+        </div>
+        {{/each}}
     </div>
-    <a href="{{nextLink}}" class="paginateRightArrow">Siguiente</a>
-  </section>
+
+    <div class="container d-flex justify-content-between mt-4">
+        {{! Indicamos que los botones aparezcan mientras prevPage y nextPage no sean null }}
+        {{#if prevPage}}
+            <a href="{{prevLink}}">
+                <button class="btn btn-primary">Anterior</button>
+            </a>
+        {{/if}}
+        <p class="mx-2">Page {{this.page}}</p>
+        {{#if nextPage}}
+            <a href="{{nextLink}}">
+                <button class="btn btn-primary">Siguiente</button>
+            </a>
+        {{/if}}
+    </div>
+</div>

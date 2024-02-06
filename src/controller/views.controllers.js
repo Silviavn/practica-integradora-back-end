@@ -1,167 +1,370 @@
-import {ProductsService, CartsService, UsersService} from "../Dao/repositories/index.js";
-import  jwt  from "jsonwebtoken";
-import config from "../config/config.js";
+import * as productServices from "../services/product.services.js";
+import * as userServices from "../services/user.services.js";
+import * as ticketService from "../services/ticket.services.js";
+import * as cartService from "../services/cart.services.js";
+import { createHash, isValidPassword } from "../utils/hashPassword.js";
+import { generateToken, verifyToken } from "../utils/jwt.js";
+import { logger } from "../utils/logger.js";
+import { sendLinkResetPassword } from "../utils/sendLinkPassword.js";
+import { userDTO } from "../dto/user.dto.js";
 
-
-const urlFront = process.env.ENVIORMEN
-
-export const home = async (req, res, next) => {
+const home = async (req, res) => {
   try {
-    const isLogin = req.cookies["coderCookieToken"] ? true : false;
-    return res.render("home", {isLogin, urlFront});
+    
+    res.render("home");
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-export const chat = async (req, res, next) => {
+const realTimeProducts = async (req, res) => {
   try {
-    const isLogin = req.cookies["coderCookieToken"] ? true : false;
-    return res.render("chat", {isLogin});
+    const products = await productServices.getAllProducts();
+    res.render("realTimeProducts", { products });  // Pasa los productos a la vista
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
 
-export const products = async (req, res, next) => {
+const chat = async (req, res) => {
   try {
-    const token = req.cookies["coderCookieToken"]
-    const isLogin = token ? true : false;
-    const { ...user } = jwt.verify( token, config.cookieSecret )
-    const {query, limit, page, sort} = req.query;
-    const response = await ProductsService.getAll(query, limit, page, sort);
-    let {
-      payload,
-      hasNextPage,
+    res.render("chat");
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+const products = async (req, res) => {
+  try {
+    const resProducts = await productServices.getAllProducts(req.query);
+
+    const { totalPages, docs, hasPrevPage, hasNextPage, prevPage, nextPage } = resProducts;
+    res.render("products", {
+      status: "success",
+      products: docs,
+      totalPages,
+      prevPage,
+      nextPage,
+      page: resProducts.page,
       hasPrevPage,
-      nextLink,
-      prevLink,
-      page: resPage,
-    } = response;
-
-    payload.forEach((element) => {
-      element.user = user;
-      element.urlFront = urlFront
-    });
-
-    if (hasNextPage)
-      nextLink = `${urlFront}/products/?${
-        query ? "query=" + query + "&" : ""
-      }${"limit=" + limit}${"&page=" + (+resPage + 1)}${
-        sort ? "&sort=" + sort : ""
-      }`;
-
-    if (hasPrevPage)
-      prevLink = `${urlFront}/products/?${
-        query ? "query=" + query + "&" : ""
-      }${"limit=" + limit}${"&page=" + (+resPage - 1)}${
-        sort ? "&sort=" + sort : ""
-      }`;
-
-    return res.render("products", {
-      payload,
       hasNextPage,
-      hasPrevPage,
-      nextLink,
-      prevLink,
-      resPage,
-      isLogin,
-      user,
+      prevLink: `http://localhost:8080/products?page=${prevPage}`,
+      nextLink: `http://localhost:8080/products?page=${nextPage}`,
     });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const cart = async (req, res, next) => {
+const productDetail = async (req, res) => {
+  const { pid } = req.params;
   try {
-    const id = req.user.cartId;
-    const email = req.user.email
-    const uid = req.user.id
-    const cart = await CartsService.getById(id);
-    if (cart.error) return res.status(cart.error).send(cart);
-
-    return res.render("cart", {cart, email, uid,isLogin: true, urlFront});
+    const product = await productServices.getProductById(pid);
+      res.render("itemDetail", product);
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const register = (req, res, next) => {
+const cartDetail = async (req, res) => {
   try {
-    return res.render("register", {});
+    const { user } = verifyToken(req.cookies.token);
+    const cart = await cartService.getCartById(user.cart);
+     
+    if (!cart) return res.status(404).json({ msg: "Carrito no encontrado" });
+
+    res.render("cart", { products: cart.products });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const login = (req, res, next) => {
+const viewLogin = async (req, res) => {
   try {
-    return res.render("login", {});
+    res.render("login");
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const recover = (req, res) => {
+const loginUser = async (req, res) => {
+  const { email, password } = req.body;
   try {
-    return res.render("recover", {});
+    // Verificamos los datos ingresados
+    const user = await userServices.getUserByEmail(email);
+
+    if (!user || !isValidPassword(user, password))
+      return res.render("login", { error: "Usuario o contraseña incorrectos" });
+
+    // Crear un carrito para el usuario (puedes ajustar esto según tus necesidades)
+    const newCart = await cartService.addCart() // Supongamos que tienes una función para crear un carrito vacío
+
+    // Asignar el carrito al usuario
+    user.cart = newCart;
+
+    // Guardar los cambios en la base de datos
+    await user.save();
+
+    const userToken = userDTO(user);
+    console.log(user);
+
+    const token = generateToken(userToken);
+
+    res.cookie("token", token, { maxAge: 3600000, httpOnly: true });
+
+    // Redireccionamos al Pagina de Inicio
+    return res.redirect("/home");
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const recoverPassword = (req, res, next) => {
+const viewRegister = async (req, res) => {
   try {
-    return res.render("recoverPassword", {});
+    res.render("register");
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const profile = (req, res, next) => {
+const registerUser = async (req, res) => {
+  const { first_name, last_name, age, email, password, role } = req.body;
   try {
-    return res.render("profile", {isLogin: true});
+    // Verificamos si el usuario ya existe
+    const user = await userServices.getUserByEmail(email);
+    if (user) {
+      return res.render("register", { error: `El usuario con el mail ${email} ya existe` });
+    }
+
+    // Verificamos que ingreso todos los datos
+    if (!first_name || !last_name || !age || !email || !password || !role) {
+      return res.render("register", { error: "Debe ingresar todos los datos" });
+    }
+
+    const cart = await cartService.addCart();
+    const newUser = {
+      first_name,
+      last_name,
+      age,
+      email,
+      cart: cart._id,
+      password: createHash(password),
+      role,
+      last_connection: new Date(),
+    };
+
+    await userServices.createUser(newUser);
+
+    // Devolvemos el usuario creado
+    return res.redirect("/login");
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const loggerTest = (req, res, next) => {
+const viewProfile = async (req, res) => {
   try {
-    req.logger.fatal("Fatal test");
-    req.logger.error("Error test");
-    req.logger.warning("Warning test");
-    req.logger.info("Info test");
-    req.logger.http("Http test");
-    req.logger.debug("Debug test");
-    return res.send({status: 200, message: "Logger test"});
+    const { user } = verifyToken(req.cookies.token);
+    const products = await productServices.getAllProducts(req.query);
+
+    // Si no hay usuario logueado redireccionamos al login
+    if (!user) return res.redirect("/login");
+
+    res.render("profile", { user, products: products.docs });
   } catch (error) {
-    next(error);
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 };
 
-
-export const admin = async ( req, res, next ) => {
+const logoutUser = async (req, res) => {
   try {
+    // Destruimos la sesión
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Error al cerrar sesión" });
+      }
+      // Redireccionamos al login
+      res.redirect("/login");
+    });
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
 
-    const { payload } = await UsersService.getAll();
+const viewResetPassword = async (req, res) => {
+  try {
+    res.render("resetPassword");
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
 
-    payload.forEach( element => element.urlFront = urlFront)
-    let isAdmin = true;
-    return res.render( "admin", { 
-      isAdmin,
-      payload
+const resetPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await userServices.getUserByEmail(email);
+
+    if (!user) return res.render("resetPassword", { error: `El usuario con el mail ${email} no existe` });
+
+    // Generamos un token que expira en 1hs
+    const token = generateToken({ email }, "1h");
+
+    // Enviamos el mail con el link para resetear la contraseña
+    sendLinkResetPassword(token, email);
+
+    res.render("sendEmail", { email });
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+const viewChangePassword = async (req, res) => {
+  try {
+    res.render("changePassword");
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+const changePassword = async (req, res) => {
+  const { password1, password2 } = req.body;
+  try {
+    if (password1 !== password2) return res.render("changePassword", { error: "Las contraseñas no coinciden" });
+
+    const email = req.cookies.token.user.email;
+    const user = await userServices.getUserByEmail(email);
+    if (!user) return res.render("changePassword", { error: `El usuario con el mail ${email} no existe` });
+    await user.updateOne({ password: createHash(password1) });
+    res.render("changePasswordConfirm", { msg: "Contraseña cambiada con éxito" });
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+const generateTicket = async (req, res) => {
+  try {
+    const user = req.user;
+    const cart = await cartService.getCartFromEmail(user.email);
+    const data = {
+      purchaser: user.email,
+      amount: cart.total,
+    };
+    const ticket = await ticketService.generateTicket(data);
+
+    res.status(201).json(ticket);
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+const getTicketFromEmail = async (req, res) => {
+  try {
+    const user = req.user;
+    const ticket = await ticketService.getTicketFromEmail(user.email);
+    res.status(200).json(ticket);
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+// Cart
+const addProductToCart = async (req, res) => {
+
+   try {
+    const { user } = verifyToken(req.cookies.token);
+  
+    const cart = await cartService.getCartById(user.cart);
+        
+    const product = await productServices.getProductById(req.params.pid);
+    if (!product) return res.status(404).json({ msg: "Producto no encontrado" });
+        
+    await cartService.addProductToCart(cart._id, req.params.pid);
+    
+    const newCart = await cartService.getCartById(user.cart);
+    
+ 
+    res.status(200).render("cart", { total: newCart.total, products: newCart.products, cartId: newCart._id });
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+const buyCart = async (req, res) => {
+  try {
+    const { user } = verifyToken(req.cookies.token);
+    const cart = await cartService.getCartById(user.cart);
+
+    const data = {
+      purchaser: user.email,
+      amount: cart.total,
+    };
+    const ticket = await ticketService.generateTicket(data);
+    //Antes de eliminar cart recorrer el carro y por cada product descontar de la tabla de producto 
+    cart.products.forEach(async (item) =>{
+      const productDao = await productServices.getProductById(item.product.id);
+      
+      const newQuantity = productDao.stock - item.quantity
+      await productServices.updateProduct(item.product.id, {stock: newQuantity});
     })
-  } catch( error ){
-    next (error);
+    await cartService.removeAllProductsFromCart(cart);
+    res.status(200).render("ticket", { ticket });
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
+  }
+};
+
+const admin = async (req, res) => {
+  try {
+    const users = await userServices.getAllUsers();
+    res.render("admin", { users });
+   
+  } catch (error) {
+    logger.error(error.message);
+    res.status(500).json({ error: "Server internal error" });
   }
 }
+
+export {
+  home,
+  realTimeProducts,
+  chat,
+  products,
+  productDetail,
+  cartDetail,
+  viewLogin,
+  loginUser,
+  viewRegister,
+  registerUser,
+  viewProfile,
+  logoutUser,
+  viewResetPassword,
+  resetPassword,
+  generateTicket,
+  getTicketFromEmail,
+  changePassword,
+  viewChangePassword,
+  addProductToCart,
+  buyCart,
+  admin
+};
